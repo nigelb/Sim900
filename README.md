@@ -5,6 +5,11 @@ It relies on the 2.8v pin from the Sim900 being plugged into one of
 the analog pins so that the library can detect the powered up status
 of the modem.
 
+To work with the Arduino Mega2560 the software serial pins need to be 
+remapped to pins that support change detect. With some plugs, map
+pin 7 to pin 10 and pin 8 to pin 11.
+
+
 Example usage:
 ```cxx
 /*
