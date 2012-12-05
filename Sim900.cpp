@@ -19,6 +19,11 @@
 
 #include "Sim900.h"
 
+void set_sim900_debug_mode(bool mode)
+{
+	SIM900_DEBUG_OUTPUT = mode;
+}
+
 Sim900::Sim900(SoftwareSerial* serial, int baud_rate, int powerPin, int statusPin)
 {
 	_serial = serial;	
@@ -79,6 +84,10 @@ bool Sim900::compare(char to_test[], char target[], int pos, int length, int tes
 
 int Sim900::waitFor(char target[], bool dropLastEOL, String* data)
 {
+	if(SIM900_DEBUG_OUTPUT){
+		Serial.print("Waiting for: ");
+		Serial.println(target);
+	}
 	int len = strlen(target);
 	int test_len = len;
 	if(test_len < 5)
@@ -94,11 +103,13 @@ int Sim900::waitFor(char target[], bool dropLastEOL, String* data)
 	{
 		if(compare(tmp, "ERROR", pos, 5, test_len))
 		{
+			if(SIM900_DEBUG_OUTPUT){Serial.println("");Serial.println("ERROR");}
 			return false;
 		}
 		if(_serial->available())
 		{
 			_tmp = _serial->read();
+			if(SIM900_DEBUG_OUTPUT){Serial.write(_tmp);}
 			if(concat){
 				data->concat(_tmp);
 			}
@@ -109,6 +120,7 @@ int Sim900::waitFor(char target[], bool dropLastEOL, String* data)
 	{
 		dropEOL();
 	}
+	if(SIM900_DEBUG_OUTPUT){Serial.println("");Serial.println("Found it!");}
 	return true;
 
 }
@@ -193,7 +205,8 @@ void Sim900::dumpStream()
 }
 
 GPRSHTTP* Sim900::createHTTPConnection(CONN settings, char URL[])
-{	lock();
+{
+	lock();
 	if(settings.contype != NULL)	
 	{
 		_serial->write("AT+SAPBR=3,");
@@ -202,8 +215,6 @@ GPRSHTTP* Sim900::createHTTPConnection(CONN settings, char URL[])
 		_serial->write(settings.contype);
 		_serial->println("\"");
 		waitFor("OK", true, NULL);
-	//	delay(100);
-	//	dumpStream();
 	}
 	if(settings.apn != NULL)	
 	{
@@ -213,8 +224,6 @@ GPRSHTTP* Sim900::createHTTPConnection(CONN settings, char URL[])
 		_serial->write(settings.apn);
 		_serial->println("\"");
 		waitFor("OK", true, NULL);
-	//	delay(100);
-	//	dumpStream();
 	}
 
 	return new GPRSHTTP(this, settings.cid, URL);
@@ -225,10 +234,49 @@ GPRSHTTP::GPRSHTTP(Sim900* sim, int cid, char URL[])
 	_sim = sim;
 	_cid = cid;
 	url = URL;
+	initialized = false;
+}
+
+bool GPRSHTTP::setParam(char* param, String value)
+{
+	if(!initialized)
+	{
+		Serial.println("GPRSHTTP must have been initialized before setParam can be called.");
+		return false;
+	}
+        //Set the PARAM
+	Serial.print("Setting HTTP Param ");
+	Serial.print(param);
+	Serial.print(" to ");
+	Serial.println(value);
+        _sim->_serial->write("AT+HTTPPARA=\"");
+	_sim->_serial->print(param);
+	_sim->_serial->print("\",\"");
+        _sim->_serial->print(value);
+        _sim->_serial->println("\"");
+        if(!_sim->waitFor("OK", true, NULL))
+        {	
+                return false;
+        }
+	return true;
+}
+bool GPRSHTTP::setParam(char* param, int value)
+{
+	return setParam(param, String(value));
+}
+bool GPRSHTTP::setParam(char* param, char* value)
+{
+	return setParam(param, String(value));
 }
 
 bool GPRSHTTP::init()
 {
+	_sim->_serial->println("AT+CGATT?");
+	if(!_sim->waitFor("OK", true, NULL))
+	{
+
+	}
+
 	//Shutdown the connection first.
 	_sim->_serial->write("AT+SAPBR=0,");
 	_sim->_serial->println(_cid, DEC);
@@ -247,7 +295,7 @@ bool GPRSHTTP::init()
 		return false;
 	}
 	Serial.println("Connected!");
-	
+
 	//Initilize the HTTP Application context.
 	_sim->_serial->println("AT+HTTPINIT");
 	if(!_sim->waitFor("OK", true, NULL))
@@ -255,20 +303,32 @@ bool GPRSHTTP::init()
 		return false;
 	}
 	Serial.println("HTTP Initilized!");
+	initialized = true;
 
-	//Set the URL
-	_sim->_serial->write("AT+HTTPPARA=\"URL\",\"");
-	_sim->_serial->write(url);
-	_sim->_serial->println("\"");
-	if(!_sim->waitFor("OK", true, NULL))
+	//Set the CID
+	if(!setParam("CID", _cid))
 	{
 		return false;
 	}
+
+	//Set the URL
+	if(!setParam("URL", url))
+	{
+		return false;
+	}
+
 	Serial.print("URL: "); Serial.println(url);
 	return true;
 }
-
+/*
 //bool GPRSHTTP::
+int GPRSHTTP::write(byte* buf, int length)
+{
+	for(int i = 0; i < length; i++)
+	{
+		_data.concat(buf[i]);
+	}
+}
 int GPRSHTTP::write(char* data)
 {
 	return _data.concat(data);
@@ -304,19 +364,21 @@ int GPRSHTTP::println(int data){
 int GPRSHTTP::println(String data){
 	return _data.concat(data) + println();
 }
-int GPRSHTTP::post(int &cid, int &HTTP_CODE, int& length){
-	int _length = _data.length()+1;
+*/
+//int GPRSHTTP::post(int &cid, int &HTTP_CODE, int& length){
+Stream* GPRSHTTP::post_init(int content_length){
 	_sim->_serial->write("AT+HTTPDATA=");
-	_sim->_serial->print(_length, DEC);
+	_sim->_serial->print(content_length, DEC);
 	_sim->_serial->write(",");
 	_sim->_serial->println(SIM900_HTTP_TIMEOUT, DEC);
 	if(!_sim->waitFor("DOWNLOAD", true, NULL))
 	{
-		return false;
+		return NULL;
 	}
-	char d[length];
-	_data.toCharArray(d, _length, 0);
-	_sim->_serial->write((const uint8_t *)d, _length);
+	return _sim->_serial;
+}
+
+bool GPRSHTTP::post(int &cid, int &HTTP_CODE, int &length){
 	if(!_sim->waitFor("OK", true, NULL))
 	{
 		return false;
@@ -336,8 +398,8 @@ int GPRSHTTP::post(int &cid, int &HTTP_CODE, int& length){
 	_start = _end + 1;
 	length = tmp->substring(_start).toInt();
 	delete tmp;
-
 	return true;
+
 }
 
 int GPRSHTTP::_read(char* data, int length)
@@ -371,10 +433,10 @@ int GPRSHTTP::_read(char* data, int length)
 
 bool GPRSHTTP::terminate()
 {
+	_sim->_serial->println("AT+HTTPTERM");
+	_sim->waitFor("OK", true, NULL);
 	_sim->_serial->write("AT+SAPBR=0,");
 	_sim->_serial->println(_cid, DEC);
-	_sim->waitFor("OK", true, NULL);
-	_sim->_serial->println("AT+HTTPTERM");
 	_sim->waitFor("OK", true, NULL);
 	_sim->unlock();
 }
