@@ -99,6 +99,10 @@ class GPRSHTTP
 		char* url;
 		String _data;
 		bool initialized;
+		int isCGATT();
+		bool HTTPINIT(int retries, int _delay);
+		bool stopBearer();//int retries, int _delay);
+		bool startBearer(int retries, int _delay);
 	public:
 		GPRSHTTP(Sim900* sim, int cid, char URL[]);
 		bool init();

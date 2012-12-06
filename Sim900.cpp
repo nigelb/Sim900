@@ -51,7 +51,9 @@ int Sim900::lock()
 {
 	if(_lock == 0)
 	{
-		Serial.println("Locked....");
+		if(SIM900_DEBUG_OUTPUT){
+			Serial.println("Locked....");
+		}
 		_lock = 1;
 		return 1;
 	}
@@ -62,7 +64,9 @@ int Sim900::unlock()
 {
 	if(_lock == 1)
 	{
-		Serial.println("Unlocked....");
+		if(SIM900_DEBUG_OUTPUT){
+			Serial.println("Unlocked....");
+		}
 		_lock = 0;
 	}
 	return 1;
@@ -268,42 +272,95 @@ bool GPRSHTTP::setParam(char* param, char* value)
 {
 	return setParam(param, String(value));
 }
+int GPRSHTTP::isCGATT()
+{
+	_sim->_serial->println("AT+CGATT?");
+	String connected;
+	if(!_sim->waitFor("OK", true, &connected))
+	{
+		return -1;
+	}
+	int pos = connected.indexOf("+CGATT: ");
+	pos = connected.indexOf(" ", pos);
+	connected = connected.substring(pos, connected.indexOf("\r", pos));
+	connected.trim();
+	if(SIM900_DEBUG_OUTPUT)
+	{
+		Serial.print("CGATT result:  ");
+		Serial.println(connected);
+	}
+	return connected.toInt();
+
+}
+bool GPRSHTTP::HTTPINIT(int retries, int _delay)
+{
+	//Initilize the HTTP Application context.
+	for(int i = 0; i < retries; i++)
+	{
+		_sim->_serial->println("AT+HTTPINIT");
+		if(_sim->waitFor("OK", true, NULL))
+		{
+			Serial.println("HTTP Initilized!");
+			return true;
+		}
+		Serial.println("Failed to initilize HTTP context, waiting to retry.");
+		delay(_delay);
+	}
+	return false;
+}
+
+bool GPRSHTTP::stopBearer()//int retries, int _delay)
+{
+		//Shutdown the connection first.
+		_sim->_serial->write("AT+SAPBR=0,");
+		_sim->_serial->println(_cid, DEC);
+		if(!_sim->waitFor("OK", true, NULL))
+		{
+			Serial.println("Not Shutdown.")	;
+		}
+		delay(1000);
+}
+bool GPRSHTTP::startBearer(int retries, int _delay)
+{
+	//Start the connection.	
+	for(int i = 0; i < retries; i++)
+	{
+		_sim->_serial->write("AT+SAPBR=1,");
+		_sim->_serial->println(_cid, DEC);
+		if(_sim->waitFor("OK", true, NULL))
+		{
+			Serial.println("Connected!");
+			return true;
+		}
+		Serial.println("Failed to connect, waiting to retry.");
+		delay(_delay);
+	}
+	return false;
+}
 
 bool GPRSHTTP::init()
 {
-	_sim->_serial->println("AT+CGATT?");
-	if(!_sim->waitFor("OK", true, NULL))
+	int connected = isCGATT();
+	if(connected == -1)
 	{
-
+		return false;
 	}
-
-	//Shutdown the connection first.
-	_sim->_serial->write("AT+SAPBR=0,");
-	_sim->_serial->println(_cid, DEC);
 	delay(1000);
-	if(!_sim->waitFor("OK", true, NULL))
-	{
-		Serial.println("Not Shutdown.")	;
+
+	if(connected == 1){
+		stopBearer();
 	}
 	
-	//Start the connection.	
-	_sim->_serial->write("AT+SAPBR=1,");
-	_sim->_serial->println(_cid, DEC);
-	delay(1000);
-	if(!_sim->waitFor("OK", true, NULL))
+	if(!startBearer(5, 1000))
 	{
 		return false;
 	}
-	Serial.println("Connected!");
 
-	//Initilize the HTTP Application context.
-	_sim->_serial->println("AT+HTTPINIT");
-	if(!_sim->waitFor("OK", true, NULL))
+	initialized = HTTPINIT(5, 1000);	
+	if(!initialized)
 	{
 		return false;
 	}
-	Serial.println("HTTP Initilized!");
-	initialized = true;
 
 	//Set the CID
 	if(!setParam("CID", _cid))
@@ -435,9 +492,7 @@ bool GPRSHTTP::terminate()
 {
 	_sim->_serial->println("AT+HTTPTERM");
 	_sim->waitFor("OK", true, NULL);
-	_sim->_serial->write("AT+SAPBR=0,");
-	_sim->_serial->println(_cid, DEC);
-	_sim->waitFor("OK", true, NULL);
+	stopBearer();
 	_sim->unlock();
 }
 
