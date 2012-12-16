@@ -28,21 +28,54 @@ void set_sim900_debug_stream(Stream* stream)
 {
 	SIM900_DEBUG_OUTPUT_STREAM = stream;
 }
-/*
-//
-//Set the SIM900 output timeout in milliseconds
-//
-void set_sim900_outout_timeout(uint32_t timeout)
-{
-	SIM900_DEBUG_OUTPUT_TIMEOUT = timeout;
-}
-*/
+
 //
 //Set the SIM900 input timeout in milliseconds
 //
 void set_sim900_input_timeout(unsigned long timeout)
 {
 	SIM900_INPUT_TIMEOUT  = timeout;
+}
+
+bool is_valid_connection_type(char* to_check)
+{
+	if(to_check == NULL)
+	{
+		return false;
+	}
+	for(int i = 0; VALID_CONNECTION_TYPES[i] != NULL; i++)
+	{
+		if(strcmp(VALID_CONNECTION_TYPES[i], to_check) == 0)	
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool is_valid_connection_rate(char* to_check)
+{
+	int speed = String(to_check).toInt();
+	for(int i = 0; VALID_CONNECTION_SPEEDS[i] != NULL; i++)
+	{
+		if(speed == VALID_CONNECTION_SPEEDS[i])
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+char* get_error_message(int error_code)
+{
+	for(int i = 0; messages[i].code != SIM900_ERROR_LIST_TERMINATOR; i++)
+	{
+		if(messages[i].code == error_code)
+		{
+			return messages[i].message;
+		}
+	}
+	return "Could not find error message.\0";//SIM900_UNKNOWN_ERROR_MESSAGE;
 }
 
 
@@ -81,7 +114,7 @@ bool Sim900::isPoweredUp()
 	return analogRead(_statusPin) > SIM900_POWERUP_THRESHOLD;
 }
 
-int Sim900::lock()
+bool Sim900::lock()
 {
 	if(_lock == 0)
 	{
@@ -89,12 +122,13 @@ int Sim900::lock()
 			SIM900_DEBUG_OUTPUT_STREAM->println("Locked....");
 		}
 		_lock = 1;
-		return 1;
+		return true;
 	}
-	return -1;
+	set_error_condition(SIM900_ERROR_COULD_NOT_AQUIRE_LOCK);
+	return false;
 }
 
-int Sim900::unlock()
+bool Sim900::unlock()
 {
 	if(_lock == 1)
 	{
@@ -103,7 +137,7 @@ int Sim900::unlock()
 		}
 		_lock = 0;
 	}
-	return 1;
+	return true;
 }
 
 bool Sim900::compare(char to_test[], char target[], int pos, int length, int test_len)
@@ -204,6 +238,9 @@ void Sim900::powerToggle()
 
 bool Sim900::powerUp()
 {
+	if(SIM900_DEBUG_OUTPUT){
+		SIM900_DEBUG_OUTPUT_STREAM->println("Powering up Modem!");
+	}
 	if(!isPoweredUp())
 	{
 		powerToggle();
@@ -264,6 +301,7 @@ bool Sim900::issueCommand(char command[], char ok[], bool dropLastEOL)
 
 }
 
+
 void Sim900::dumpStream()
 {
 	while(_serial->available())
@@ -272,29 +310,103 @@ void Sim900::dumpStream()
 	}
 }
 
+bool Sim900::is_valid_connection_settings(CONN settings)
+{
+	if(!(settings.cid >= 0 && settings.cid <= 5))
+	{
+		set_error_condition(SIM900_ERROR_INVALID_CID_VALUE);
+		return false;
+	}
+	if(!is_valid_connection_type(settings.contype))
+	{
+		set_error_condition(SIM900_ERROR_INVALID_CONNECTION_TYPE);
+		return false;
+	}
+	if(settings.apn != NULL && !(strlen(settings.apn) <= SIM900_MAX_CONNECTION_SETTING_CHARACTERS))
+	{
+		set_error_condition(SIM900_ERROR_CHARACTER_LIMIT_EXCEEDED);
+		return false;
+	}
+	if(settings.user!= NULL && !(strlen(settings.user) <= SIM900_MAX_CONNECTION_SETTING_CHARACTERS))
+	{
+		set_error_condition(SIM900_ERROR_CHARACTER_LIMIT_EXCEEDED);
+		return false;
+	}
+	if(settings.pwd != NULL && !(strlen(settings.pwd) <= SIM900_MAX_CONNECTION_SETTING_CHARACTERS))
+	{
+		set_error_condition(SIM900_ERROR_CHARACTER_LIMIT_EXCEEDED);
+		return false;
+	}
+	if(settings.rate != NULL && !is_valid_connection_rate(settings.rate))
+	{
+		set_error_condition(SIM900_ERROR_INVALID_CONNECTION_RATE);
+		return false;
+	}
+	return true;
+}
+
 GPRSHTTP* Sim900::createHTTPConnection(CONN settings, char URL[])
 {
-	lock();
-	if(settings.contype != NULL)	
-	{
-		_serial->write("AT+SAPBR=3,");
-		_serial->print(settings.cid, DEC);
-		_serial->write(",\"CONTYPE\",\"");
-		_serial->write(settings.contype);
-		_serial->println("\"");
-		waitFor("OK", true, NULL);
-	}
-	if(settings.apn != NULL)	
-	{
-		_serial->write("AT+SAPBR=3,");
-		_serial->print(settings.cid, DEC);
-		_serial->write(",\"APN\",\"");
-		_serial->write(settings.apn);
-		_serial->println("\"");
-		waitFor("OK", true, NULL);
-	}
+	set_error_condition(SIM900_ERROR_NO_ERROR);
+	if(is_valid_connection_settings(settings) && lock()){
+		if(settings.contype != NULL)	
+		{
+			_serial->write("AT+SAPBR=3,");
+			_serial->print(settings.cid, DEC);
+			_serial->write(",\"CONTYPE\",\"");
+			_serial->write(settings.contype);
+			_serial->println("\"");
+			waitFor("OK", true, NULL);
+		}
+		if(settings.apn != NULL)	
+		{
+			_serial->write("AT+SAPBR=3,");
+			_serial->print(settings.cid, DEC);
+			_serial->write(",\"APN\",\"");
+			_serial->write(settings.apn);
+			_serial->println("\"");
+			waitFor("OK", true, NULL);
+		}
+		if(settings.user != NULL)	
+		{
+			_serial->write("AT+SAPBR=3,");
+			_serial->print(settings.cid, DEC);
+			_serial->write(",\"USER\",\"");
+			_serial->write(settings.user);
+			_serial->println("\"");
+			waitFor("OK", true, NULL);
+		}
+		if(settings.pwd != NULL)	
+		{
+			_serial->write("AT+SAPBR=3,");
+			_serial->print(settings.cid, DEC);
+			_serial->write(",\"PWD\",\"");
+			_serial->write(settings.pwd);
+			_serial->println("\"");
+			waitFor("OK", true, NULL);
+		}
+		if(settings.phone != NULL)	
+		{
+			_serial->write("AT+SAPBR=3,");
+			_serial->print(settings.cid, DEC);
+			_serial->write(",\"PHONENUM\",\"");
+			_serial->write(settings.phone);
+			_serial->println("\"");
+			waitFor("OK", true, NULL);
+		}
+		if(settings.rate != NULL)	
+		{
+			_serial->write("AT+SAPBR=3,");
+			_serial->print(settings.cid, DEC);
+			_serial->write(",\"RATE\",\"");
+			_serial->write(settings.rate);
+			_serial->println("\"");
+			waitFor("OK", true, NULL);
+		}
 
-	return new GPRSHTTP(this, settings.cid, URL);
+		return new GPRSHTTP(this, settings.cid, URL);
+	}
+	return NULL;
 }
 
 GPRSHTTP::GPRSHTTP(Sim900* sim, int cid, char URL[])
@@ -379,16 +491,26 @@ bool GPRSHTTP::HTTPINIT(int retries, int _delay)
 	return false;
 }
 
-bool GPRSHTTP::stopBearer()//int retries, int _delay)
+bool GPRSHTTP::stopBearer(int retries, int _delay)
 {
 		//Shutdown the connection first.
+	for(int i = 0; i < retries; i++)
+	{
 		_sim->_serial->write("AT+SAPBR=0,");
 		_sim->_serial->println(_cid, DEC);
-		if(!_sim->waitFor("OK", true, NULL))
+		if(_sim->waitFor("OK", true, NULL))
 		{
-			Serial.println("Not Shutdown.")	;
+			return true;
+		}else
+		{
+			if(SIM900_DEBUG_OUTPUT)
+			{
+				SIM900_DEBUG_OUTPUT_STREAM->println("Not Shutdown.");
+			}
 		}
-		delay(1000);
+		delay(_delay);
+	}
+	return false;
 }
 bool GPRSHTTP::startBearer(int retries, int _delay)
 {
@@ -402,7 +524,10 @@ bool GPRSHTTP::startBearer(int retries, int _delay)
 			Serial.println("Connected!");
 			return true;
 		}
-		Serial.println("Failed to connect, waiting to retry.");
+		if(SIM900_DEBUG_OUTPUT)
+		{
+			SIM900_DEBUG_OUTPUT_STREAM->println("Failed to connect, waiting to retry.");
+		}
 		delay(_delay);
 	}
 	return false;
@@ -418,7 +543,7 @@ bool GPRSHTTP::init()
 	delay(1000);
 
 	if(connected == 1){
-		stopBearer();
+		stopBearer(1, 0);
 	}
 	
 	if(!startBearer(5, 1000))
@@ -448,8 +573,8 @@ bool GPRSHTTP::init()
 	return true;
 }
 
-//Stream* GPRSHTTP::post_init(int content_length){
 bool GPRSHTTP::post_init(int content_length){
+	set_error_condition(SIM900_ERROR_NO_ERROR);
 	if(content_length > SIM900_MAX_POST_DATA)
 	{
 		if(SIM900_DEBUG_OUTPUT)
@@ -459,6 +584,7 @@ bool GPRSHTTP::post_init(int content_length){
 			SIM900_DEBUG_OUTPUT_STREAM->print(" is greater than the maxium allowed post size of ");
 			SIM900_DEBUG_OUTPUT_STREAM->println(SIM900_MAX_POST_DATA);
 		}
+		set_error_condition(SIM900_ERROR_MAX_POST_DATA_SIZE_EXCEEDED);
 		return false;
 	}
 	_sim->_serial->write("AT+HTTPDATA=");
@@ -518,7 +644,7 @@ bool GPRSHTTP::terminate()
 {
 	_sim->_serial->println("AT+HTTPTERM");
 	_sim->waitFor("OK", true, NULL);
-	stopBearer();
+	stopBearer(5,1000);
 	_sim->unlock();
 }
 
@@ -588,7 +714,7 @@ int GPRSHTTP::read()
 	{
 		if(SIM900_DEBUG_OUTPUT)
 		{
-			set_error_condition(SIM900_ERROR_READ_LIMIT_EXCEDED);
+			set_error_condition(SIM900_ERROR_READ_LIMIT_EXCEEDED);
 			SIM900_DEBUG_OUTPUT_STREAM->print("Read limit: ");
 			SIM900_DEBUG_OUTPUT_STREAM->print(read_limit);
 			SIM900_DEBUG_OUTPUT_STREAM->print(" has been exceded by read count: ");
@@ -613,7 +739,7 @@ int GPRSHTTP::available()
 			SIM900_DEBUG_OUTPUT_STREAM->print(" has been exceded by read count: ");
 			SIM900_DEBUG_OUTPUT_STREAM->println(read_count);
 		}
-		return SIM900_ERROR_READ_LIMIT_EXCEDED;
+		return SIM900_ERROR_READ_LIMIT_EXCEEDED;
 	}
 	return false;
 }
@@ -634,7 +760,7 @@ int GPRSHTTP::peek()
 	{
 		if(SIM900_DEBUG_OUTPUT)
 		{
-			set_error_condition(SIM900_ERROR_READ_LIMIT_EXCEDED);
+			set_error_condition(SIM900_ERROR_READ_LIMIT_EXCEEDED);
 			SIM900_DEBUG_OUTPUT_STREAM->print("Read limit: ");
 			SIM900_DEBUG_OUTPUT_STREAM->print(read_limit);
 			SIM900_DEBUG_OUTPUT_STREAM->print(" has been exceded by read count: ");

@@ -45,16 +45,22 @@ char url[] = "www.example.com";
 void setup()
 {
   Serial.begin(19200);             // the Serial port of Arduino baud rate.
+  delay(2000);
   settings.cid = 1;
   settings.contype = "GPRS";
   settings.apn = "internet";
+  test_modem();
   
 }
 
 
 void loop()
 {
-  int cid = 0, code = 0, length = 0;  
+}
+
+void test_modem()
+{
+  int cid = 0, code = 0, length = 0, error_code = 0;  
   if(modem.powerUp())
   {
       Serial.println("Powered Up") ;
@@ -68,28 +74,44 @@ void loop()
         Serial.println(error_rate);        
       }
       GPRSHTTP* con = modem.createHTTPConnection(settings, url);
-      if(con->init())
+      if(con == NULL)
+      {
+          Serial.println(get_error_message(modem.get_error_condition()));
+          return;
+      }
+      if(con->init() && con->post_init(14))
       {
         con->println("Hello World!");
-        con->println("Hello World!");        
         if(con->post(cid, code, length))
         {
           Serial.print("HTTP CODE: ");
           Serial.println(code, DEC);  
           Serial.print("Length: ");   
-          Serial.println(length, DEC);          
-          char data[length + 1];
-          data[length] = '\0';
-          if(code == 200 && con->_read(data, length))
-          {
-            Serial.println("Retrieved Data:");
-            Serial.println(data);
+          Serial.println(length, DEC);     
+          if(con->init_retrieve())
+          {     
+            length = length + 1;    //Trigger an error condition.
+            char data[length + 1];  //Ensure that this is a NULL Terminated String....
+            data[length] = '\0';    //....
+            if(con->read(data, length))
+            {
+              Serial.println("Retrieved Data:");
+              Serial.println(data);
+            }
+            if(con->get_error_condition() == SIM900_ERROR_READ_LIMIT_EXCEEDED)
+            {
+                Serial.println("We tried to Read more characters from the connection than were available!");
+            }
           }
         }
       }
       con->terminate();
       delete con;
       Serial.println("------------------------------------------------");
+  }else
+  {
+     Serial.println("Powering up modem failed !"); 
   }
+  modem.powerDown(); 
 }
 ```

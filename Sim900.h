@@ -33,14 +33,23 @@
 #define SIM900_HTTP_TIMEOUT 100000
 #endif
 
+
+#define SIM900_ERROR_LIST_TERMINATOR 1
 #define SIM900_ERROR_NO_ERROR 0
-#define SIM900_ERROR_MODEM_ERROR -1
-#define SIM900_ERROR_TIMEOUT -2
-#define SIM900_ERROR_DATA_NOT_READY -3
-#define SIM900_ERROR_READ_LIMIT_EXCEDED -4
+#define SIM900_ERROR_COULD_NOT_AQUIRE_LOCK -1
+#define SIM900_ERROR_MODEM_ERROR -10
+#define SIM900_ERROR_TIMEOUT -20
+#define SIM900_ERROR_DATA_NOT_READY -30
+#define SIM900_ERROR_MAX_POST_DATA_SIZE_EXCEEDED -40
+#define SIM900_ERROR_READ_LIMIT_EXCEEDED -41
+#define SIM900_ERROR_INVALID_CID_VALUE -50
+#define SIM900_ERROR_CHARACTER_LIMIT_EXCEEDED -51
+#define SIM900_ERROR_INVALID_CONNECTION_TYPE -52
+#define SIM900_ERROR_INVALID_CONNECTION_RATE -53
 
 #define SIM900_MAX_POST_DATA 318976
 #define SIM900_CONNECTION_INIT = 2;
+#define SIM900_MAX_CONNECTION_SETTING_CHARACTERS 50
 
 #include <Stream.h>
 
@@ -55,26 +64,67 @@
 
 static bool   SIM900_DEBUG_OUTPUT = false;
 static Stream* SIM900_DEBUG_OUTPUT_STREAM = &Serial;
-//static uint32_t SIM900_DEBUG_OUTPUT_TIMEOUT = 60000;
 static unsigned long SIM900_INPUT_TIMEOUT  = 60000l;
 
 struct CONN
 {
-	int  cid;
-	char* contype;
-	char* apn;
-	char* user;
-	char* pwd;
-	char* phone;
-	char* rate;
+	int  cid;      // Bearer profile identifier.
+	char* contype; // Valid Options: GPRS, CSD.
+	char* apn;     // Provided by telco. Sometimes preprogrammed into the SIM card.
+	char* user;    // Username, MAX 50 Characters.
+	char* pwd;     // Password, MAX 50 Charcters.
+	char* phone;   // Phone number for CSD call.
+	char* rate;    // CSD connection rate.
 
+	CONN() : cid(-1), contype(NULL), apn(NULL), user(NULL), pwd(NULL), phone(NULL), rate(NULL) {}
 };
 
+struct error_message
+{
+	int code;
+	char* message;
+};
 
+static error_message messages[]
+{
+	{SIM900_ERROR_NO_ERROR, "No Error"},
+	{SIM900_ERROR_COULD_NOT_AQUIRE_LOCK, "Only one connection at a time can use the modem."},
+	{SIM900_ERROR_MODEM_ERROR, "Modem Error"},
+	{SIM900_ERROR_TIMEOUT, "Timed out waiting for modem response."},
+	{SIM900_ERROR_DATA_NOT_READY, "init_retrieve needs to be called before data can be read."},
+	{SIM900_ERROR_MAX_POST_DATA_SIZE_EXCEEDED, "The maxiumum post data size was excedded."},
+	{SIM900_ERROR_READ_LIMIT_EXCEEDED, "The read limit was excedded."},
+	{SIM900_ERROR_INVALID_CID_VALUE, "Invalid Bearer profile Identifier"},
+	{SIM900_ERROR_CHARACTER_LIMIT_EXCEEDED, "The Maxiumum character limit was exceeded"},
+	{SIM900_ERROR_INVALID_CONNECTION_TYPE, "The specified connection type is not valid."},
+	{SIM900_ERROR_INVALID_CONNECTION_RATE, "The specified connection rate is not valid."},
+
+
+	//This needs to be the last element or things will go badly wrong.
+	{SIM900_ERROR_LIST_TERMINATOR, NULL} 
+};
+
+static const char *VALID_CONNECTION_TYPES[] = {
+	"GPRS",
+	"CSD",
+	NULL
+};
+
+static const int VALID_CONNECTION_SPEEDS[]
+{
+	2400,
+	4800,
+	9600,
+	14400,
+	NULL
+};
+
+bool is_valid_connection_type(char* to_check);
+bool is_valid_connection_rate(char* to_check);
 void set_sim900_debug_mode(bool mode);
 void set_sim900_debug_stream(Stream* stream);
-//void set_sim900_outout_timeout(uint32_t timeout);
 void set_sim900_input_timeout(unsigned long timeout);
+char* get_error_message(int error_code);
 
 class GPRSHTTP;
 
@@ -86,8 +136,8 @@ class Sim900
 		int _powerPin;
 		int _statusPin;
 		int _lock;
-		int lock();
-		int unlock();
+		bool lock();
+		bool unlock();
 		bool dropEOL();
 		int waitFor(char target[], bool dropLastEOL, String* data);
 		int waitFor(char target[], bool dropLastEOL, String* data, unsigned long timeout);
@@ -96,6 +146,7 @@ class Sim900
 		bool issueCommand(char command[], char ok[], bool dropLastEOL);
 		void dumpStream();
 		void set_error_condition(int error_value);
+		bool is_valid_connection_settings(CONN settings);
 	public:
 		Sim900(SoftwareSerial* serial, int baud_rate, int powerPin, int statusPin);
 		Sim900(HardwareSerial* serial, int baud_rate, int powerPin, int statusPin);
@@ -126,7 +177,7 @@ class GPRSHTTP : public Stream
 		bool initialized, _data_ready;
 		int isCGATT();
 		bool HTTPINIT(int retries, int _delay);
-		bool stopBearer();//int retries, int _delay);
+		bool stopBearer(int retries, int _delay);
 		bool startBearer(int retries, int _delay);
 		void set_error_condition(int error_value);
 	public:
@@ -137,10 +188,8 @@ class GPRSHTTP : public Stream
 		bool setParam(char* param, int value);
 
 
-		//Stream* post_init(int content_length);
 		bool post_init(int content_length);
 		bool post(int &cid, int &HTTP_CODE, int &length);
-		//int _read(char* data, int length);
 		int init_retrieve();
 		int get_error_condition();
 		bool terminate();
