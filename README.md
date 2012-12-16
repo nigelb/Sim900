@@ -1,13 +1,13 @@
 Sim900
 =====
-This is an Arduino library for using the Sim900 GPRS Shield.
+This is an Arduino library for the Sim900 GPRS Shield.
 It relies on the 2.8v pin from the Sim900 being plugged into one of
-the analog pins so that the library can detect the powered up status
+the analog pins so that the library can determine the power state
 of the modem.
 
 To work with the Arduino Mega2560 the software serial pins need to be 
-remapped to pins that support change detect. With some Arduino jumper leads, 
-map pin 7 to pin 10 and pin 8 to pin 11.
+remapped to pins that support change detect (PCINT). With some Arduino 
+jumper leads, map pin 7 to pin 10 and pin 8 to pin 11.
 
 
 Example usage:
