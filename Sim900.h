@@ -48,8 +48,10 @@
 #define SIM900_ERROR_INVALID_CONNECTION_RATE -53
 
 #define SIM900_MAX_POST_DATA 318976
+#define SIM900_MAX_HTTP_TIMEOUT 120000
 #define SIM900_CONNECTION_INIT = 2;
 #define SIM900_MAX_CONNECTION_SETTING_CHARACTERS 50
+
 
 #include <Stream.h>
 
@@ -132,6 +134,7 @@ class Sim900
 {
 	private:
 		Stream* _serial;
+		SoftwareSerial* _ser;
 		int _error_condition;
 		int _powerPin;
 		int _statusPin;
@@ -150,13 +153,14 @@ class Sim900
 	public:
 		Sim900(SoftwareSerial* serial, int baud_rate, int powerPin, int statusPin);
 		Sim900(HardwareSerial* serial, int baud_rate, int powerPin, int statusPin);
+
 		bool getSignalQuality(int &strength, int &error_rate);
 		bool isPoweredUp();
 		bool powerUp();
 		bool powerDown();
 		GPRSHTTP* createHTTPConnection(CONN settings, char URL[]);
-		bool startGPRS();
-		bool stopGPRS();
+		/*bool startGPRS();
+		bool stopGPRS();*/
 		int get_error_condition();
 
 	friend class GPRSHTTP; 
@@ -172,8 +176,8 @@ class GPRSHTTP : public Stream
 		int _cid;
 		char* url;
 		String _data;
-		int write_limit, write_count;
-		int read_limit,  read_count;
+		uint32_t write_limit, write_count;
+		uint32_t read_limit,  read_count;
 		bool initialized, _data_ready;
 		int isCGATT();
 		bool HTTPINIT(int retries, int _delay);
@@ -185,11 +189,11 @@ class GPRSHTTP : public Stream
 		bool init();
 		bool setParam(char* param, String value);
 		bool setParam(char* param, char* value);
-		bool setParam(char* param, int value);
+		bool setParam(char* param, uint32_t value);
 
 
-		bool post_init(int content_length);
-		bool post(int &cid, int &HTTP_CODE, int &length);
+		bool post_init(uint32_t content_length);
+		bool post(int &cid, int &HTTP_CODE, uint32_t &length);
 		int init_retrieve();
 		int get_error_condition();
 		bool terminate();

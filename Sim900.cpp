@@ -43,7 +43,7 @@ bool is_valid_connection_type(char* to_check)
 	{
 		return false;
 	}
-	for(int i = 0; VALID_CONNECTION_TYPES[i] != NULL; i++)
+	for(uint32_t i = 0; VALID_CONNECTION_TYPES[i] != NULL; i++)
 	{
 		if(strcmp(VALID_CONNECTION_TYPES[i], to_check) == 0)	
 		{
@@ -55,8 +55,8 @@ bool is_valid_connection_type(char* to_check)
 
 bool is_valid_connection_rate(char* to_check)
 {
-	int speed = String(to_check).toInt();
-	for(int i = 0; VALID_CONNECTION_SPEEDS[i] != NULL; i++)
+	uint32_t speed = String(to_check).toInt();
+	for(uint32_t i = 0; VALID_CONNECTION_SPEEDS[i] != NULL; i++)
 	{
 		if(speed == VALID_CONNECTION_SPEEDS[i])
 		{
@@ -68,7 +68,7 @@ bool is_valid_connection_rate(char* to_check)
 
 char* get_error_message(int error_code)
 {
-	for(int i = 0; messages[i].code != SIM900_ERROR_LIST_TERMINATOR; i++)
+	for(uint32_t i = 0; messages[i].code != SIM900_ERROR_LIST_TERMINATOR; i++)
 	{
 		if(messages[i].code == error_code)
 		{
@@ -86,6 +86,7 @@ Sim900::Sim900(SoftwareSerial* serial, int baud_rate, int powerPin, int statusPi
 	_statusPin = statusPin;
 	_lock = 0;
 	_error_condition = SIM900_ERROR_NO_ERROR;	
+	_ser = serial;
 	serial->begin(baud_rate);
 }
 
@@ -96,6 +97,7 @@ Sim900::Sim900(HardwareSerial* serial, int baud_rate, int powerPin, int statusPi
 	_statusPin = statusPin;
 	_lock = 0;
 	_error_condition = SIM900_ERROR_NO_ERROR;	
+	_ser = NULL;
 	serial->begin(baud_rate);
 }
 
@@ -243,6 +245,10 @@ bool Sim900::powerUp()
 	}
 	if(!isPoweredUp())
 	{
+		//if(_ser != NULL)
+		//{
+		//	_ser->listen();
+		//}
 		powerToggle();
 		if(waitFor("Call Ready", true, NULL))
 		{
@@ -446,7 +452,7 @@ bool GPRSHTTP::setParam(char* param, String value)
         }
 	return true;
 }
-bool GPRSHTTP::setParam(char* param, int value)
+bool GPRSHTTP::setParam(char* param, uint32_t value)
 {
 	return setParam(param, String(value));
 }
@@ -573,7 +579,7 @@ bool GPRSHTTP::init()
 	return true;
 }
 
-bool GPRSHTTP::post_init(int content_length){
+bool GPRSHTTP::post_init(uint32_t content_length){
 	set_error_condition(SIM900_ERROR_NO_ERROR);
 	if(content_length > SIM900_MAX_POST_DATA)
 	{
@@ -601,14 +607,26 @@ bool GPRSHTTP::post_init(int content_length){
 
 }
 
-bool GPRSHTTP::post(int &cid, int &HTTP_CODE, int &length){
+bool GPRSHTTP::post(int &cid, int &HTTP_CODE, uint32_t &length){
+	unsigned long upload_time_out = SIM900_INPUT_TIMEOUT;
+	if(SIM900_DEBUG_OUTPUT)
+	{
+		SIM900_DEBUG_OUTPUT_STREAM->print("Write Count: ");
+		SIM900_DEBUG_OUTPUT_STREAM->print(write_count);
+		SIM900_DEBUG_OUTPUT_STREAM->print(" Write Limit: ");
+		SIM900_DEBUG_OUTPUT_STREAM->println(write_limit);
+	}
+	if(write_limit * 10 > upload_time_out)
+	{
+		upload_time_out = write_limit * 10;
+	}
 	if(!_sim->waitFor("OK", true, NULL))
 	{
 		return false;
 	}
 	_sim->_serial->write("AT+HTTPACTION=");
 	_sim->_serial->println(POST, DEC);
-	if(!_sim->waitFor("+HTTPACTION:", true, NULL))
+	if(!_sim->waitFor("+HTTPACTION:", true, NULL, upload_time_out))
 	{
 		return false;
 	}
