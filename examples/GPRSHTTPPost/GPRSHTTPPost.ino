@@ -46,7 +46,9 @@ void loop()
 
 void test_modem()
 {
-  int cid = 0, code = 0, length = 0, error_code = 0;  
+  int cid = 0, code = 0, error_code = 0;  
+  uint32_t length = 0;
+
   if(modem.powerUp())
   {
       Serial.println("Powered Up") ;
