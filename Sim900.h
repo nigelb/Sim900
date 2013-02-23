@@ -87,7 +87,7 @@ struct error_message
 	char* message;
 };
 
-static error_message messages[]
+static error_message messages[] =
 {
 	{SIM900_ERROR_NO_ERROR, "No Error"},
 	{SIM900_ERROR_COULD_NOT_AQUIRE_LOCK, "Only one connection at a time can use the modem."},
@@ -112,7 +112,7 @@ static const char *VALID_CONNECTION_TYPES[] = {
 	NULL
 };
 
-static const int VALID_CONNECTION_SPEEDS[]
+static const int VALID_CONNECTION_SPEEDS[] =
 {
 	2400,
 	4800,
