@@ -55,11 +55,11 @@
 
 #include <Stream.h>
 
-#if defined(ARDUINO) && ARDUINO >= 100
+//#if defined(ARDUINO) && ARDUINO >= 100
 #include "Arduino.h"
-#else
-#include "WProgram.h"
-#endif
+//#else
+//#include "WProgram.h"
+//#endif
 
 #include <SoftwareSerial.h>
 
@@ -155,6 +155,7 @@ class Sim900
 		Sim900(HardwareSerial* serial, int baud_rate, int powerPin, int statusPin);
 
 		bool getSignalQuality(int &strength, int &error_rate);
+		bool waitForSignal(int iterations, int wait_time);
 		bool isPoweredUp();
 		bool powerUp();
 		bool powerDown();
@@ -162,6 +163,7 @@ class Sim900
 		/*bool startGPRS();
 		bool stopGPRS();*/
 		int get_error_condition();
+
 
 	friend class GPRSHTTP; 
 };

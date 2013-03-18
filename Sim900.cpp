@@ -300,6 +300,34 @@ bool Sim900::getSignalQuality(int &strength, int &error_rate)
 	return false;
 }
 
+bool Sim900::waitForSignal(int iterations, int wait_time)
+{
+  int strength = -1, error_rate = -1, strength_count = 0;
+  while(strength <= 0)
+  {
+    if(getSignalQuality(strength, error_rate))
+    {
+    	if(SIM900_DEBUG_OUTPUT){
+    		SIM900_DEBUG_OUTPUT_STREAM->print("Strength: ");
+    		SIM900_DEBUG_OUTPUT_STREAM->print(strength);
+    		SIM900_DEBUG_OUTPUT_STREAM->print(" Error Rate: ");
+    		SIM900_DEBUG_OUTPUT_STREAM->println(error_rate);
+    	}
+    }
+    if(strength <= 0){
+      Serial.println("Waiting for modem to establish connection...");
+      delay(wait_time);
+      strength_count++;
+    }
+    if(strength_count > iterations)
+    {
+      Serial.println("Could not establish connection. Not uploading data.");
+      return false;
+    }
+  }
+  return true;
+}
+
 bool Sim900::issueCommand(char command[], char ok[], bool dropLastEOL)
 {
 	_serial->write(command);
