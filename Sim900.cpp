@@ -646,6 +646,9 @@ bool GPRSHTTP::post_init(uint32_t content_length){
 
 }
 
+
+//If the response from the server does not have a Content-Length header
+//then length will always be zero.
 bool GPRSHTTP::post(int &cid, int &HTTP_CODE, uint32_t &length){
 	unsigned long upload_time_out = SIM900_INPUT_TIMEOUT;
 	if(SIM900_DEBUG_OUTPUT)

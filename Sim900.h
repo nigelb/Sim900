@@ -195,6 +195,9 @@ class GPRSHTTP : public Stream
 
 
 		bool post_init(uint32_t content_length);
+
+		//If the response from the server does not have a Content-Length header
+		//then length will always be zero.
 		bool post(int &cid, int &HTTP_CODE, uint32_t &length);
 		int init_retrieve();
 		int get_error_condition();
