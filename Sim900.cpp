@@ -113,7 +113,9 @@ int Sim900::get_error_condition()
 
 bool Sim900::isPoweredUp()
 {
+	pinMode(_statusPin, INPUT);
 	return analogRead(_statusPin) > SIM900_POWERUP_THRESHOLD;
+
 }
 
 bool Sim900::lock()
@@ -315,14 +317,19 @@ bool Sim900::waitForSignal(int iterations, int wait_time)
     	}
     }
     if(strength <= 0){
-      Serial.println("Waiting for modem to establish connection...");
-      delay(wait_time);
-      strength_count++;
+    	if(SIM900_DEBUG_OUTPUT){
+    		SIM900_DEBUG_OUTPUT_STREAM->println("Waiting for modem to establish connection...");
+    	}
+
+    	delay(wait_time);
+    	strength_count++;
     }
     if(strength_count > iterations)
     {
-      Serial.println("Could not establish connection. Not uploading data.");
-      return false;
+    	if(SIM900_DEBUG_OUTPUT){
+    		SIM900_DEBUG_OUTPUT_STREAM->println("Could not establish connection. Not uploading data.");
+    	}
+    	return false;
     }
   }
   return true;
@@ -510,16 +517,17 @@ int GPRSHTTP::isCGATT()
 }
 bool GPRSHTTP::HTTPINIT(int retries, int _delay)
 {
-	//Initilize the HTTP Application context.
+	//Initialize the HTTP Application context.
 	for(int i = 0; i < retries; i++)
 	{
 		_sim->_serial->println("AT+HTTPINIT");
 		if(_sim->waitFor("OK", true, NULL))
 		{
-			Serial.println("HTTP Initilized!");
+
+			SIM900_DEBUG_OUTPUT_STREAM->println("HTTP Initialized!");
 			return true;
 		}
-		Serial.println("Failed to initilize HTTP context, waiting to retry.");
+		SIM900_DEBUG_OUTPUT_STREAM->println("Failed to initialize HTTP context, waiting to retry.");
 		delay(_delay);
 	}
 	return false;
@@ -555,7 +563,10 @@ bool GPRSHTTP::startBearer(int retries, int _delay)
 		_sim->_serial->println(_cid, DEC);
 		if(_sim->waitFor("OK", true, NULL))
 		{
-			Serial.println("Connected!");
+			if(SIM900_DEBUG_OUTPUT)
+			{
+				SIM900_DEBUG_OUTPUT_STREAM->println("Connected!");
+			}
 			return true;
 		}
 		if(SIM900_DEBUG_OUTPUT)
@@ -580,12 +591,12 @@ bool GPRSHTTP::init()
 		stopBearer(1, 0);
 	}
 	
-	if(!startBearer(5, 1000))
+	if(!startBearer(5, 2000))
 	{
 		return false;
 	}
 
-	initialized = HTTPINIT(5, 1000);	
+	initialized = HTTPINIT(5, 2000);
 	if(!initialized)
 	{
 		return false;
@@ -704,6 +715,7 @@ size_t GPRSHTTP::write(uint8_t byte)
 	return -1;
 }
 
+
 size_t GPRSHTTP::read(char* buf, int length)
 {
 	return read((byte*)buf, length);
@@ -742,7 +754,7 @@ int GPRSHTTP::read()
 			{
 				if(SIM900_DEBUG_OUTPUT)
 				{
-					SIM900_DEBUG_OUTPUT_STREAM->println("The timeout was reachead whilst trying to read the HTTP response.");	
+					SIM900_DEBUG_OUTPUT_STREAM->println("The timeout was reached whilst trying to read the HTTP response.");
 				}
 				return SIM900_ERROR_TIMEOUT;
 			}
@@ -763,7 +775,7 @@ int GPRSHTTP::read()
 			set_error_condition(SIM900_ERROR_READ_LIMIT_EXCEEDED);
 			SIM900_DEBUG_OUTPUT_STREAM->print("Read limit: ");
 			SIM900_DEBUG_OUTPUT_STREAM->print(read_limit);
-			SIM900_DEBUG_OUTPUT_STREAM->print(" has been exceded by read count: ");
+			SIM900_DEBUG_OUTPUT_STREAM->print(" has been exceed by read count: ");
 			SIM900_DEBUG_OUTPUT_STREAM->println(read_count);
 		}
 	}
@@ -782,7 +794,7 @@ int GPRSHTTP::available()
 		{
 			SIM900_DEBUG_OUTPUT_STREAM->print("Read limit: ");
 			SIM900_DEBUG_OUTPUT_STREAM->print(read_limit);
-			SIM900_DEBUG_OUTPUT_STREAM->print(" has been exceded by read count: ");
+			SIM900_DEBUG_OUTPUT_STREAM->print(" has been exceed by read count: ");
 			SIM900_DEBUG_OUTPUT_STREAM->println(read_count);
 		}
 		return SIM900_ERROR_READ_LIMIT_EXCEEDED;
@@ -809,7 +821,7 @@ int GPRSHTTP::peek()
 			set_error_condition(SIM900_ERROR_READ_LIMIT_EXCEEDED);
 			SIM900_DEBUG_OUTPUT_STREAM->print("Read limit: ");
 			SIM900_DEBUG_OUTPUT_STREAM->print(read_limit);
-			SIM900_DEBUG_OUTPUT_STREAM->print(" has been exceded by read count: ");
+			SIM900_DEBUG_OUTPUT_STREAM->print(" has been exceed by read count: ");
 			SIM900_DEBUG_OUTPUT_STREAM->print(read_count);
 		}
 	}

@@ -94,10 +94,10 @@ static error_message messages[] =
 	{SIM900_ERROR_MODEM_ERROR, "Modem Error"},
 	{SIM900_ERROR_TIMEOUT, "Timed out waiting for modem response."},
 	{SIM900_ERROR_DATA_NOT_READY, "init_retrieve needs to be called before data can be read."},
-	{SIM900_ERROR_MAX_POST_DATA_SIZE_EXCEEDED, "The maxiumum post data size was excedded."},
-	{SIM900_ERROR_READ_LIMIT_EXCEEDED, "The read limit was excedded."},
+	{SIM900_ERROR_MAX_POST_DATA_SIZE_EXCEEDED, "The maximum post data size was exceeded."},
+	{SIM900_ERROR_READ_LIMIT_EXCEEDED, "The read limit was exceeded."},
 	{SIM900_ERROR_INVALID_CID_VALUE, "Invalid Bearer profile Identifier"},
-	{SIM900_ERROR_CHARACTER_LIMIT_EXCEEDED, "The Maxiumum character limit was exceeded"},
+	{SIM900_ERROR_CHARACTER_LIMIT_EXCEEDED, "The Maximum character limit was exceeded"},
 	{SIM900_ERROR_INVALID_CONNECTION_TYPE, "The specified connection type is not valid."},
 	{SIM900_ERROR_INVALID_CONNECTION_RATE, "The specified connection rate is not valid."},
 
