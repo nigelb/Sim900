@@ -604,7 +604,7 @@ bool GPRSHTTP::startBearer(int retries, int _delay)
 
 bool GPRSHTTP::init(int timeout)
 {
-	if(timeout > 1000 || timeout < 0)
+	if(timeout > 1000 || timeout < 30)
 	{
 		_error_condition = SIM900_ERROR_INVALID_HTTP_TIMEOUT;
 		if(SIM900_DEBUG_OUTPUT)

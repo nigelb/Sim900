@@ -110,7 +110,7 @@ static error_message messages[] =
 	{SIM900_ERROR_CHARACTER_LIMIT_EXCEEDED, "The Maximum character limit was exceeded"},
 	{SIM900_ERROR_INVALID_CONNECTION_TYPE, "The specified connection type is not valid."},
 	{SIM900_ERROR_INVALID_CONNECTION_RATE, "The specified connection rate is not valid."},
-	{SIM900_ERROR_INVALID_HTTP_TIMEOUT, "The HTTP Timeout value must be between 0 and 1000."},
+	{SIM900_ERROR_INVALID_HTTP_TIMEOUT, "The HTTP Timeout value must be between 30 and 1000 seconds."},
 
 
 	//This needs to be the last element or things will go badly wrong.
