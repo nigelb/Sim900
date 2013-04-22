@@ -48,8 +48,8 @@
 #define SIM900_ERROR_INVALID_CONNECTION_RATE -53
 #define SIM900_ERROR_INVALID_HTTP_TIMEOUT -54
 
-#define SIM900_MAX_POST_DATA 318976
-#define SIM900_MAX_HTTP_TIMEOUT 120000
+#define SIM900_MAX_POST_DATA_V1 318976
+#define SIM900_MAX_POST_DATA_V2 102400
 #define SIM900_CONNECTION_INIT = 2;
 #define SIM900_MAX_CONNECTION_SETTING_CHARACTERS 50
 
@@ -68,6 +68,15 @@
 static bool   SIM900_DEBUG_OUTPUT = true;
 static Stream* SIM900_DEBUG_OUTPUT_STREAM = &Serial;
 static unsigned long SIM900_INPUT_TIMEOUT  = 60000l;
+
+//According to http://www.mt-system.ru/sites/default/files/docs/simcom/docs/sim900/sim900_at_command_manual_v1.06.pdf
+//There are multiple varients of the Sim900 modules, which affect things
+//like the SIM900_MAX_POST_DATA size.
+enum MODEM_VARIANT
+{
+	VARIENT_1,
+	VARIENT_2
+} ;
 
 struct CONN
 {
@@ -141,6 +150,9 @@ class Sim900
 		int _powerPin;
 		int _statusPin;
 		int _lock;
+		enum MODEM_VARIANT varient;
+		uint32_t max_http_post_size;
+
 		bool lock();
 		bool unlock();
 		bool dropEOL();
@@ -152,9 +164,13 @@ class Sim900
 		void dumpStream();
 		void set_error_condition(int error_value);
 		bool is_valid_connection_settings(CONN settings);
+		void handle_varient(MODEM_VARIANT varient);
 	public:
-		Sim900(SoftwareSerial* serial, int baud_rate, int powerPin, int statusPin);
-		Sim900(HardwareSerial* serial, int baud_rate, int powerPin, int statusPin);
+		Sim900(SoftwareSerial* serial, int baud_rate, int powerPin, int statusPin,  enum MODEM_VARIANT varient);
+		Sim900(HardwareSerial* serial, int baud_rate, int powerPin, int statusPin,  enum MODEM_VARIANT varient);
+
+		MODEM_VARIANT get_varient();
+		uint32_t get_max_http_post_size();
 
 		bool getSignalQuality(int &strength, int &error_rate);
 		bool waitForSignal(int iterations, int wait_time);

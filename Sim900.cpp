@@ -78,8 +78,7 @@ char* get_error_message(int error_code)
 	return "Could not find error message.\0";//SIM900_UNKNOWN_ERROR_MESSAGE;
 }
 
-
-Sim900::Sim900(SoftwareSerial* serial, int baud_rate, int powerPin, int statusPin)
+Sim900::Sim900(SoftwareSerial* serial, int baud_rate, int powerPin, int statusPin,  enum MODEM_VARIANT varient)
 {
 	_serial = serial;	
 	_powerPin = powerPin;
@@ -87,10 +86,11 @@ Sim900::Sim900(SoftwareSerial* serial, int baud_rate, int powerPin, int statusPi
 	_lock = 0;
 	_error_condition = SIM900_ERROR_NO_ERROR;	
 	_ser = serial;
+	handle_varient(varient);
 	serial->begin(baud_rate);
 }
 
-Sim900::Sim900(HardwareSerial* serial, int baud_rate, int powerPin, int statusPin)
+Sim900::Sim900(HardwareSerial* serial, int baud_rate, int powerPin, int statusPin,  enum MODEM_VARIANT varient)
 {
 	_serial = serial;	
 	_powerPin = powerPin;
@@ -98,7 +98,31 @@ Sim900::Sim900(HardwareSerial* serial, int baud_rate, int powerPin, int statusPi
 	_lock = 0;
 	_error_condition = SIM900_ERROR_NO_ERROR;	
 	_ser = NULL;
+	handle_varient(varient);
 	serial->begin(baud_rate);
+}
+
+void Sim900::handle_varient(MODEM_VARIANT varient)
+{
+	this->varient = varient;
+	switch(varient)
+	{
+	case VARIENT_1:
+		max_http_post_size = SIM900_MAX_POST_DATA_V1;
+		break;
+	case VARIENT_2:
+		max_http_post_size = SIM900_MAX_POST_DATA_V2;
+		break;
+	}
+}
+
+MODEM_VARIANT Sim900::get_varient()
+{
+	return varient;
+}
+uint32_t Sim900::get_max_http_post_size()
+{
+	return max_http_post_size;
 }
 
 void Sim900::set_error_condition(int error_value)
@@ -635,14 +659,14 @@ bool GPRSHTTP::init(int timeout)
 
 bool GPRSHTTP::post_init(uint32_t content_length){
 	set_error_condition(SIM900_ERROR_NO_ERROR);
-	if(content_length > SIM900_MAX_POST_DATA)
+	if(content_length > _sim->max_http_post_size)
 	{
 		if(SIM900_DEBUG_OUTPUT)
 		{
 			SIM900_DEBUG_OUTPUT_STREAM->print("Specified Content Length: ");
 			SIM900_DEBUG_OUTPUT_STREAM->print(content_length);
-			SIM900_DEBUG_OUTPUT_STREAM->print(" is greater than the maxium allowed post size of ");
-			SIM900_DEBUG_OUTPUT_STREAM->println(SIM900_MAX_POST_DATA);
+			SIM900_DEBUG_OUTPUT_STREAM->print(" is greater than the maximum allowed post size of ");
+			SIM900_DEBUG_OUTPUT_STREAM->println(_sim->max_http_post_size);
 		}
 		set_error_condition(SIM900_ERROR_MAX_POST_DATA_SIZE_EXCEEDED);
 		return false;
