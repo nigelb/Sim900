@@ -46,6 +46,7 @@
 #define SIM900_ERROR_CHARACTER_LIMIT_EXCEEDED -51
 #define SIM900_ERROR_INVALID_CONNECTION_TYPE -52
 #define SIM900_ERROR_INVALID_CONNECTION_RATE -53
+#define SIM900_ERROR_INVALID_HTTP_TIMEOUT -54
 
 #define SIM900_MAX_POST_DATA 318976
 #define SIM900_MAX_HTTP_TIMEOUT 120000
@@ -64,7 +65,7 @@
 #include <SoftwareSerial.h>
 
 
-static bool   SIM900_DEBUG_OUTPUT = false;
+static bool   SIM900_DEBUG_OUTPUT = true;
 static Stream* SIM900_DEBUG_OUTPUT_STREAM = &Serial;
 static unsigned long SIM900_INPUT_TIMEOUT  = 60000l;
 
@@ -100,6 +101,7 @@ static error_message messages[] =
 	{SIM900_ERROR_CHARACTER_LIMIT_EXCEEDED, "The Maximum character limit was exceeded"},
 	{SIM900_ERROR_INVALID_CONNECTION_TYPE, "The specified connection type is not valid."},
 	{SIM900_ERROR_INVALID_CONNECTION_RATE, "The specified connection rate is not valid."},
+	{SIM900_ERROR_INVALID_HTTP_TIMEOUT, "The HTTP Timeout value must be between 0 and 1000."},
 
 
 	//This needs to be the last element or things will go badly wrong.
@@ -188,7 +190,7 @@ class GPRSHTTP : public Stream
 		void set_error_condition(int error_value);
 	public:
 		GPRSHTTP(Sim900* sim, int cid, char URL[]);
-		bool init();
+		bool init(int timeout = 120);
 		bool setParam(char* param, String value);
 		bool setParam(char* param, char* value);
 		bool setParam(char* param, uint32_t value);

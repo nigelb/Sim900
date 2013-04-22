@@ -578,8 +578,17 @@ bool GPRSHTTP::startBearer(int retries, int _delay)
 	return false;
 }
 
-bool GPRSHTTP::init()
+bool GPRSHTTP::init(int timeout)
 {
+	if(timeout > 1000 || timeout < 0)
+	{
+		_error_condition = SIM900_ERROR_INVALID_HTTP_TIMEOUT;
+		if(SIM900_DEBUG_OUTPUT)
+		{
+			SIM900_DEBUG_OUTPUT_STREAM->println(get_error_message(SIM900_ERROR_INVALID_HTTP_TIMEOUT));
+		}
+		return false;
+	}
 	int connected = isCGATT();
 	if(connected == -1)
 	{
@@ -610,6 +619,12 @@ bool GPRSHTTP::init()
 
 	//Set the URL
 	if(!setParam("URL", url))
+	{
+		return false;
+	}
+
+	//Set the HTTP Timeout
+	if(!setParam("TIMEOUT", timeout))
 	{
 		return false;
 	}
@@ -713,7 +728,17 @@ size_t GPRSHTTP::write(uint8_t byte)
 	if(write_count++ < write_limit)
 	{
 		
-		return _sim->_serial->write(byte);	
+		size_t toRet = _sim->_serial->write(byte);
+		if(SIM900_DEBUG_OUTPUT && _sim->_serial->available())
+		{
+			SIM900_DEBUG_OUTPUT_STREAM->println();
+			while(_sim->_serial->available())
+			{
+				SIM900_DEBUG_OUTPUT_STREAM->print((char)_sim->_serial->read());
+			}
+			SIM900_DEBUG_OUTPUT_STREAM->println();
+		}
+		return toRet;
 	}
 	return -1;
 }
