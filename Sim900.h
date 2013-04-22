@@ -74,8 +74,8 @@ static unsigned long SIM900_INPUT_TIMEOUT  = 60000l;
 //like the SIM900_MAX_POST_DATA size.
 enum MODEM_VARIANT
 {
-	VARIENT_1,
-	VARIENT_2
+	VARIANT_1,
+	VARIANT_2
 } ;
 
 struct CONN

@@ -107,10 +107,10 @@ void Sim900::handle_varient(MODEM_VARIANT varient)
 	this->varient = varient;
 	switch(varient)
 	{
-	case VARIENT_1:
+	case VARIANT_1:
 		max_http_post_size = SIM900_MAX_POST_DATA_V1;
 		break;
-	case VARIENT_2:
+	case VARIANT_2:
 		max_http_post_size = SIM900_MAX_POST_DATA_V2;
 		break;
 	}

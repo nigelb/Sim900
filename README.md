@@ -39,7 +39,7 @@ CONN settings;
 // pins 10, and 11 are serial rx and tx pins for the modem
 // pin 9 is the power toggle pin
 // analog pin 8 is the GRPS power status pin
-Sim900 modem(new SoftwareSerial(10, 11), 19200, 9, 8);
+Sim900 modem(new SoftwareSerial(10, 11), 19200, 9, 8, VARIANT_2);
 char url[] = "www.example.com";
 
 void setup()
