@@ -65,7 +65,7 @@
 #include <SoftwareSerial.h>
 
 
-static bool   SIM900_DEBUG_OUTPUT = true;
+static bool   SIM900_DEBUG_OUTPUT = false;
 static Stream* SIM900_DEBUG_OUTPUT_STREAM = &Serial;
 static unsigned long SIM900_INPUT_TIMEOUT  = 60000l;
 
